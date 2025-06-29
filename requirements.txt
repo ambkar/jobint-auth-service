@@ -1,0 +1,11 @@
+sanic==24.12.0
+sanic-ext==24.12.0
+SQLAlchemy[asyncio]==2.0.30
+asyncpg==0.29.0
+pydantic==2.11.7
+passlib[bcrypt]==1.7.4
+PyJWT==2.8.0
+python-dotenv==1.0.1
+alembic==1.16.2
+pydantic-settings-2.10.1
+email-validator==2.0.0
