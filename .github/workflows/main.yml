@@ -56,19 +56,20 @@ jobs:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
       # ─── Init DB (idempotent) ───
+      # ─── Init DB (idempotent) ───
       - name: Init DB (idempotent)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
-          PGUSER: jobint_user            # тот же, что в compose
         run: |
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<EOSSH
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOSSH'
             set -euo pipefail
             cd /var/www/jobint.ru/auth-service
 
-            docker compose exec -T db psql -U $PGUSER <<'SQL'
-            -- создаём роль и БД, если их ещё нет
-            DO \$\$
+            docker compose exec -T db psql -U jobint_user -d postgres <<'EOSQL'
+            -- создаём супер-роль, если её нет
+            DO
+            $do$
             BEGIN
               IF NOT EXISTS (
                 SELECT FROM pg_roles WHERE rolname = 'jobint_user'
@@ -76,9 +77,11 @@ jobs:
                 CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003' SUPERUSER;
               END IF;
             END
-            \$\$;
+            $do$;
 
-            DO \$\$
+            -- создаём базу jobint, если её нет
+            DO
+            $do$
             BEGIN
               IF NOT EXISTS (
                 SELECT FROM pg_database WHERE datname = 'jobint'
@@ -86,11 +89,12 @@ jobs:
                 CREATE DATABASE jobint OWNER jobint_user;
               END IF;
             END
-            \$\$;
+            $do$;
 
             GRANT ALL PRIVILEGES ON DATABASE jobint TO jobint_user;
-            SQL
+            EOSQL
           EOSSH
+
 
 
       # ── pull образ + перезапуск ──
