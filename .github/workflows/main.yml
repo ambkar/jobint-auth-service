@@ -72,6 +72,16 @@ jobs:
             REPO=git@github.com:ambkar/jobint-auth-service.git
             pwd && ls -al
             
+            # --- clone при первом деплое ---
+            if [ ! -d "$DIR/.git" ]; then
+              mkdir -p "$DIR"
+              git clone --depth 1 --branch main "$REPO" "$DIR"
+            else
+              git -C "$DIR" pull --ff-only
+            fi
+
+            cd "$DIR"
+
             # Обновить зависимости (при необходимости)
             # git pull origin main          # если храните код на сервере
 
