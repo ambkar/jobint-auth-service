@@ -55,8 +55,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      # ─── Init DB (idempotent) ───
-      # ─── Init DB (idempotent) ───
+      # ─── Init DB ───
       - name: Init DB (idempotent)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -66,34 +65,47 @@ jobs:
             set -euo pipefail
             cd /var/www/jobint.ru/auth-service
 
-            docker compose exec -T db psql -U jobint_user -d postgres <<'EOSQL'
-            -- создаём супер-роль, если её нет
-            DO
-            $do$
-            BEGIN
-              IF NOT EXISTS (
-                SELECT FROM pg_roles WHERE rolname = 'jobint_user'
-              ) THEN
-                CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003' SUPERUSER;
-              END IF;
-            END
-            $do$;
+            # прогоняем SQL через STDIN
+            cat <<'EOSQL' | docker compose exec -T db psql -U jobint_user -d postgres
+            -- роль
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='jobint_user')
+              THEN CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003' SUPERUSER; END IF;
+            END $$;
 
-            -- создаём базу jobint, если её нет
-            DO
-            $do$
-            BEGIN
-              IF NOT EXISTS (
-                SELECT FROM pg_database WHERE datname = 'jobint'
-              ) THEN
-                CREATE DATABASE jobint OWNER jobint_user;
-              END IF;
-            END
-            $do$;
+            -- база
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_database WHERE datname='jobint')
+              THEN CREATE DATABASE jobint OWNER jobint_user; END IF;
+            END $$;
 
             GRANT ALL PRIVILEGES ON DATABASE jobint TO jobint_user;
             EOSQL
           EOSSH
+
+      # ─── Deploy контейнеров ───
+      - name: Deploy containers
+        env:
+          SSH_HOST:   ${{ secrets.SSH_HOST }}
+          SSH_USER:   ${{ secrets.SSH_USER }}
+          IMAGE_TAG:  ${{ env.IMAGE_NAME }}:latest   # готовая строка с тегом
+        run: |
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<EOSSH
+            set -euo pipefail
+            PROJECT_DIR="/var/www/jobint.ru/auth-service"
+            REPO="https://github.com/ambkar/jobint-auth-service.git"
+
+            if [ ! -d "\$PROJECT_DIR/.git" ]; then
+              git clone --depth 1 --branch main "\$REPO" "\$PROJECT_DIR"
+            else
+              git -C "\$PROJECT_DIR" pull --ff-only
+            fi
+
+            docker pull $IMAGE_TAG
+            cd "\$PROJECT_DIR"
+            docker compose up -d --remove-orphans
+          EOSSH
+
 
 
 
