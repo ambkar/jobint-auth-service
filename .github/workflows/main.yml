@@ -1,23 +1,29 @@
 name: CI / CD
 
+# ────────────── триггеры ──────────────
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+# общий префикс образа
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ github.sha }}
 
-# ───────────── 1. Build & Push ─────────────
+# ────────────── JOBS ──────────────
 jobs:
+# ───────────────────── 1. BUILD & PUSH ─────────────────────
   build-and-push:
     runs-on: ubuntu-latest
-    permissions: {contents: read, packages: write}
+    permissions:                 # push в GHCR
+      contents: read
+      packages: write
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -26,7 +32,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build + push
+      - name: Build & push image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -35,100 +41,65 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:latest
 
-# ───────────── 2. Test (заглушка) ─────────────
+# ───────────────────── 2. TEST (заглушка) ─────────────────────
   test:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - run: echo "tests passed"
+      - run: echo "✓ tests passed"
 
-# ───────────── 3. Deploy ─────────────
+# ───────────────────── 3. DEPLOY ─────────────────────
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
-      # ── SSH-ключ ──
-      - name: Start SSH agent
+      - name: Start SSH-agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # ─── Init DB ───
-      - name: Init DB (idempotent)
+      - name: Deploy on server
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOSSH'
-            set -euo pipefail
-            cd /var/www/jobint.ru/auth-service
-
-            # прогоняем SQL через STDIN
-            cat <<'EOSQL' | docker compose exec -T db psql -U jobint_user -d postgres
-            -- роль
-            DO $$ BEGIN
-              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='jobint_user')
-              THEN CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003' SUPERUSER; END IF;
-            END $$;
-
-            -- база
-            DO $$ BEGIN
-              IF NOT EXISTS (SELECT FROM pg_database WHERE datname='jobint')
-              THEN CREATE DATABASE jobint OWNER jobint_user; END IF;
-            END $$;
-
-            GRANT ALL PRIVILEGES ON DATABASE jobint TO jobint_user;
-            EOSQL
-          EOSSH
-
-      # ─── Deploy контейнеров ───
-      - name: Deploy containers
-        env:
-          SSH_HOST:   ${{ secrets.SSH_HOST }}
-          SSH_USER:   ${{ secrets.SSH_USER }}
-          IMAGE_TAG:  ${{ env.IMAGE_NAME }}:latest   # готовая строка с тегом
+          SSH_HOST:  ${{ secrets.SSH_HOST }}
+          SSH_USER:  ${{ secrets.SSH_USER }}
+          IMAGE_TAG: ${{ env.IMAGE_NAME }}:latest     # ghcr.io/…/jobint-auth-service:latest
         run: |
           ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<EOSSH
             set -euo pipefail
-            PROJECT_DIR="/var/www/jobint.ru/auth-service"
-            REPO="https://github.com/ambkar/jobint-auth-service.git"
 
-            if [ ! -d "\$PROJECT_DIR/.git" ]; then
-              git clone --depth 1 --branch main "\$REPO" "\$PROJECT_DIR"
+            # ─── 1. idempotent-инициализация БД ───
+            cd /var/www/jobint.ru/auth-service
+            cat <<'EOSQL' | docker compose exec -T db psql -U jobint_user -d postgres
+              DO $$
+              BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jobint_user') THEN
+                  CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003' SUPERUSER;
+                END IF;
+              END
+              $$;
+
+              DO $$
+              BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'jobint') THEN
+                  CREATE DATABASE jobint OWNER jobint_user;
+                END IF;
+              END
+              $$;
+
+              GRANT ALL PRIVILEGES ON DATABASE jobint TO jobint_user;
+            EOSQL
+
+            # ─── 2. обновляем код ───
+            REPO="https://github.com/ambkar/jobint-auth-service.git"
+            if [ ! -d ".git" ]; then
+              git clone --depth 1 --branch main "$REPO" .
             else
-              git -C "\$PROJECT_DIR" pull --ff-only
+              git pull --ff-only
             fi
 
+            # ─── 3. тянем образ и перезапускаем стэк ───
             docker pull $IMAGE_TAG
-            cd "\$PROJECT_DIR"
-            docker compose up -d --remove-orphans
-          EOSSH
-
-
-
-
-      # ── pull образ + перезапуск ──
-      - name: Deploy containers
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-        run: |
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOSSH'
-            set -euo pipefail
-            PROJECT_DIR="/var/www/jobint.ru/auth-service"
-            REPO="https://github.com/ambkar/jobint-auth-service.git"
-
-            # code update
-            if [ ! -d "$PROJECT_DIR/.git" ]; then
-              git clone --depth 1 --branch main "$REPO" "$PROJECT_DIR"
-            else
-              git -C "$PROJECT_DIR" pull --ff-only
-            fi
-
-            docker pull $IMAGE_NAME:latest
-            cd "$PROJECT_DIR"
             docker compose up -d --remove-orphans
           EOSSH
