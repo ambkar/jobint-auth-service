@@ -66,19 +66,19 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} <<'EOSSH'
-            set -e  
+            set -euo pipefail
             # Папка проекта на сервере
             cd /var/www/jobint.ru/auth-service
             REPO=git@github.com:ambkar/jobint-auth-service.git
             pwd && ls -al
             DIR=/var/www/jobint.ru/auth-service
-            
-            # --- clone при первом деплое ---
+
             if [ ! -d "$DIR/.git" ]; then
-              mkdir -p "$DIR"
-              git clone --depth 1 --branch main "$REPO" "$DIR"
+              sudo rm -rf "$DIR"
+              sudo git clone --depth 1 --branch main "$REPO" "$DIR"
+              sudo chown -R $USER:$USER "$DIR"             # вернуть права пользователю
             else
-              git -C "$DIR" pull --ff-only
+              sudo -u $USER git -C "$DIR" pull --ff-only   # или просто git -C …
             fi
 
             cd "$DIR"
