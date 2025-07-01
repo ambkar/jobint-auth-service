@@ -1,4 +1,3 @@
-# auth.py
 import jwt
 from functools import wraps
 from sanic import Blueprint, response
@@ -13,20 +12,19 @@ def check_token(request):
     if not hdr.startswith("Bearer "):
         return None
     try:
-        token = hdr[7:]
-        return jwt.decode(token, SECRET, algorithms=["HS256"])
+        return jwt.decode(hdr[7:], SECRET, algorithms=["HS256"])
     except jwt.exceptions.InvalidTokenError:
         return None
 
 
-def protected(f):
-    @wraps(f)
-    async def decorated(request, *args, **kwargs):
+def protected(fn):
+    @wraps(fn)
+    async def decorated(request, *a, **kw):
         payload = check_token(request)
         if not payload:
             return response.json({"error": "Unauthorized"}, status=401)
         request.ctx.user = payload["user"]
-        return await f(request, *args, **kwargs)
+        return await fn(request, *a, **kw)
 
     return decorated
 
