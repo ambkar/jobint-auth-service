@@ -69,6 +69,7 @@ jobs:
             set -e  
             # Папка проекта на сервере
             cd /var/www/jobint.ru/auth-service
+            REPO=git@github.com:ambkar/jobint-auth-service.git
             pwd && ls -al
             
             # Обновить зависимости (при необходимости)
