@@ -70,7 +70,7 @@ jobs:
             # Папка проекта на сервере
             cd /var/www/jobint.ru/auth-service
             DIR=/var/www/jobint.ru/auth-service
-            REPO=git@github.com:ambkar/jobint-auth-service.git
+            REPO=https://github.com/ambkar/jobint-auth-service.git
 
             if [ ! -d "$DIR/.git" ]; then
               git clone --depth 1 --branch main "$REPO" "$DIR"
