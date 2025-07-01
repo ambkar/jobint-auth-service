@@ -19,4 +19,4 @@ async def health(_):
 
 if __name__ == "__main__":
     # dev-режим, без форков
-    app.run(host="0.0.0.0", port=8001, workers=1, dev=True)
+    app.run(host="0.0.0.0", port=8001, workers=1)
