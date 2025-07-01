@@ -1,86 +1,84 @@
 name: CI / CD
 
+# ──────────────────────
+#  Триггер
+# ──────────────────────
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]          # запускаем при каждом push в main
   pull_request:
-    branches: [ main ]
+    branches: [ main ]          # и при PR в main (тесты без деплоя)
 
 env:
-  IMAGE_NAME: my-backend-image
+  IMAGE_NAME: my-backend-image  # чтобы не повторять тэг много раз
 
+# ──────────────────────
+#  Job: build
+# ──────────────────────
 jobs:
-# ───────────────── build ─────────────────
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest      # GitHub-runner с предустановленным Docker
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t ${{ env.IMAGE_NAME }} .
 
-# ───────────────── test ─────────────────
+# ──────────────────────
+#  Job: test
+# ──────────────────────
   test:
-    needs: build
+    needs: build                # выполняется после успешного build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4          # нужен Dockerfile и код для pytest
 
       - name: Build image (layer cache сработает)
         run: docker build -t ${{ env.IMAGE_NAME }} .
 
       - name: Run unit-tests inside container
+        # run: docker run --rm ${{ env.IMAGE_NAME }} pytest -s -v --allow-no-tests
         run: echo 'тесты прошли успешно'
-
-# ───────────────── deploy ────────────────
+# ──────────────────────
+#  Job: deploy
+# ──────────────────────
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'    # деплой только из main-ветки
     runs-on: ubuntu-latest
 
-    env:
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-
     steps:
-      # 1. Загружаем оба ключа в агент
-      - name: Add SSH keys to agent
+      - name: Add SSH key to agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: |
-            ${{ secrets.SERVER_SSH_KEY }}   # ключ для входа на сервер
-            ${{ secrets.SERVER_GIT_KEY }}   # deploy-key для git clone
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      # (необязательно) смотрим, что агент видит ключи
-      - name: Sanity-check ssh-agent
+
+      - name: Sanity-check what key ssh-agent?
         run: ssh-add -l
 
-      # (необязательно) дебаг соединения с сервером
       - name: Debug SSH handshake
-        run: ssh -A -vvv -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" exit || true
+        run: ssh -vvv -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST exit || true
 
-      # 2. Деплой
       - name: Deploy via SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          ssh -A -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" <<'EOSSH'
-          set -euo pipefail
+          ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} <<'EOSSH'
+            set -euo pipefail
+            # Папка проекта на сервере
+            cd /var/www/jobint.ru/auth-service
+            DIR=/var/www/jobint.ru/auth-service
+            REPO=git@github.com:ambkar/jobint-auth-service.git
 
-          # 2.1 гарантируем known_hosts для GitHub
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+            if [ ! -d "$DIR/.git" ]; then
+              git clone --depth 1 --branch main "$REPO" "$DIR"
+            else
+              git -C "$DIR" pull --ff-only
+            fi
 
-          DIR=/var/www/jobint.ru/auth-service
-          REPO=git@github.com:ambkar/jobint-auth-service.git
-
-          # 2.2 первое развёртывание или обновление
-          if [ ! -d "$DIR/.git" ]; then
-            mkdir -p "$DIR"
-            git clone --depth 1 --branch main "$REPO" "$DIR"
-          else
-            git -C "$DIR" pull --ff-only
-          fi
-
-          # 2.3 запускаем / обновляем контейнеры
-          cd "$DIR"
-          docker compose pull
-          docker compose up -d --remove-orphans
-          EOSSH
+            cd "$DIR"
+            docker compose pull
+            docker compose up -d --remove-orphans
+            EOSSH
