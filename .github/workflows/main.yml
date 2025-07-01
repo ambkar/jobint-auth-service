@@ -53,6 +53,9 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
+      - name: Sanity-check: какой ключ в ssh-agent?
+        run: ssh-add -l
+
       - name: Deploy via SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
