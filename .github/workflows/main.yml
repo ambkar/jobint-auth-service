@@ -69,24 +69,16 @@ jobs:
             set -euo pipefail
             # Папка проекта на сервере
             cd /var/www/jobint.ru/auth-service
-            REPO=git@github.com:ambkar/jobint-auth-service.git
-            pwd && ls -al
             DIR=/var/www/jobint.ru/auth-service
+            REPO=git@github.com:ambkar/jobint-auth-service.git
 
             if [ ! -d "$DIR/.git" ]; then
-              sudo rm -rf "$DIR"
-              sudo git clone --depth 1 --branch main "$REPO" "$DIR"
-              sudo chown -R $USER:$USER "$DIR"             # вернуть права пользователю
+              git clone --depth 1 --branch main "$REPO" "$DIR"
             else
-              sudo -u $USER git -C "$DIR" pull --ff-only   # или просто git -C …
+              git -C "$DIR" pull --ff-only
             fi
 
             cd "$DIR"
-
-            # Обновить зависимости (при необходимости)
-            # git pull origin main          # если храните код на сервере
-
-            # Перезапустить контейнеры
-            docker compose pull             # подтянуть новые образы (если пушите в регистри)
+            docker compose pull
             docker compose up -d --remove-orphans
-          EOSSH
+            EOSSH
