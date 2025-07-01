@@ -2,18 +2,22 @@ services:
   db:
     image: postgres:14
     environment:
-      POSTGRES_DB: jobint
-      POSTGRES_USER: jobint_user
-      POSTGRES_PASSWORD: Karen_2003
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jobint_user"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
+      POSTGRES_DB: "jobint"
+      POSTGRES_USER: "jobint_user"
+      POSTGRES_PASSWORD: "Karen_2003"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+       - ../2. Init Database:/docker-entrypoint-initdb.d
+       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobint_user -d jobint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+      restart: unless-stopped
 
   auth_service:
     build:
