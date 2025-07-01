@@ -53,6 +53,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
+
       - name: Sanity-check what key ssh-agent?
         run: ssh-add -l
 
@@ -65,8 +66,10 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} <<'EOSSH'
+            set -e  
             # Папка проекта на сервере
             cd /var/www/jobint.ru/auth-service
+            pwd && ls -al
             
             # Обновить зависимости (при необходимости)
             # git pull origin main          # если храните код на сервере
