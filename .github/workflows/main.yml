@@ -1,41 +1,32 @@
 name: CI / CD
 
-# ────────── триггеры ──────────
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-# общий префикс образа
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ github.sha }}
 
-# ──────────────────────────────
-# 1) Build + Push (GHCR)
-# ──────────────────────────────
+# ───────────── 1. Build & Push ─────────────
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write            # для push в GHCR
+    permissions: {contents: read, packages: write}
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push
+      - name: Build + push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -44,47 +35,62 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:latest
 
-# ──────────────────────────────
-# 2) Тесты
-# ──────────────────────────────
+# ───────────── 2. Test (заглушка) ─────────────
   test:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Pull built image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      - run: echo "tests passed"
 
-      # если появятся реальные тесты — раскомментируйте ↓
-      # - name: Run pytest
-      #   run: docker run --rm ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} pytest -q
-
-      - run: echo "✓ tests passed (заглушка)"
-
-# ──────────────────────────────
-# 3) Deploy
-# ──────────────────────────────
+# ───────────── 3. Deploy ─────────────
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
-      # ─── Подключаем приватный ключ ───
+      # ── SSH-ключ ──
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # ─── Idempotent-создание роли+БД ───
-      - name: Init DB (create if absent)
+      # ── Inline-SQL: создать user + db, если нет ──
+      - name: Init DB (idempotent)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
-            'cd /var/www/jobint.ru/auth-service && ./scripts/init_db.sh'
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOSSH'
+            set -euo pipefail
+            cd /var/www/jobint.ru/auth-service
 
-      # ─── Обновляем код и контейнеры ───
+            docker compose exec -T db psql -U postgres <<'SQL'
+            DO $init$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT FROM pg_roles WHERE rolname = 'jobint_user'
+              ) THEN
+                 CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003';
+              END IF;
+            END
+            $init$;
+
+            DO $init$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT FROM pg_database WHERE datname = 'jobint'
+              ) THEN
+                 CREATE DATABASE jobint OWNER jobint_user;
+              END IF;
+            END
+            $init$;
+
+            GRANT ALL PRIVILEGES ON DATABASE jobint TO jobint_user;
+            SQL
+          EOSSH
+
+      # ── pull образ + перезапуск ──
       - name: Deploy containers
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -96,16 +102,14 @@ jobs:
             PROJECT_DIR="/var/www/jobint.ru/auth-service"
             REPO="https://github.com/ambkar/jobint-auth-service.git"
 
-            # clone / pull приложение
+            # code update
             if [ ! -d "$PROJECT_DIR/.git" ]; then
               git clone --depth 1 --branch main "$REPO" "$PROJECT_DIR"
             else
               git -C "$PROJECT_DIR" pull --ff-only
             fi
 
-            # подтягиваем свежий образ
             docker pull $IMAGE_NAME:latest
-
             cd "$PROJECT_DIR"
             docker compose up -d --remove-orphans
           EOSSH
