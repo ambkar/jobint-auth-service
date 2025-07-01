@@ -1,4 +1,4 @@
-version: "3.9"
+# строка version больше не нужна
 
 services:
   db:
@@ -12,15 +12,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
-    volumes: [pgdata:/var/lib/postgresql/data]
-    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   auth_service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile        # тот, что лежит в корне репо
     depends_on:
       db:
-        condition: service_healthy
-    ports: ["8001:8001"]
+        condition: service_healthy  # дождаться готовности БД
+    ports:
+      - "8001:8001"                 # HOST → контейнер
+    env_file: .env                  # если нужен .env
+    command: python -m app.main     # запуск Sanic
 
 volumes:
   pgdata:
