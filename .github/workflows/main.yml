@@ -55,40 +55,43 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      # ── Inline-SQL: создать user + db, если нет ──
+      # ─── Init DB (idempotent) ───
       - name: Init DB (idempotent)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          PGUSER: jobint_user            # тот же, что в compose
         run: |
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOSSH'
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<EOSSH
             set -euo pipefail
             cd /var/www/jobint.ru/auth-service
 
-            docker compose exec -T db psql -U postgres <<'SQL'
-            DO $init$
+            docker compose exec -T db psql -U $PGUSER <<'SQL'
+            -- создаём роль и БД, если их ещё нет
+            DO \$\$
             BEGIN
               IF NOT EXISTS (
                 SELECT FROM pg_roles WHERE rolname = 'jobint_user'
               ) THEN
-                 CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003';
+                CREATE ROLE jobint_user LOGIN PASSWORD 'Karen_2003' SUPERUSER;
               END IF;
             END
-            $init$;
+            \$\$;
 
-            DO $init$
+            DO \$\$
             BEGIN
               IF NOT EXISTS (
                 SELECT FROM pg_database WHERE datname = 'jobint'
               ) THEN
-                 CREATE DATABASE jobint OWNER jobint_user;
+                CREATE DATABASE jobint OWNER jobint_user;
               END IF;
             END
-            $init$;
+            \$\$;
 
             GRANT ALL PRIVILEGES ON DATABASE jobint TO jobint_user;
             SQL
           EOSSH
+
 
       # ── pull образ + перезапуск ──
       - name: Deploy containers
