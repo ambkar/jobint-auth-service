@@ -7,25 +7,23 @@ services:
       POSTGRES_USER: jobint_user
       POSTGRES_PASSWORD: Karen_2003
       POSTGRES_DB: jobint
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:                       # ← проверяем, что Postgres принимает соединения
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jobint_user"]
       interval: 5s
       timeout: 3s
       retries: 12
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   auth_service:
     build: .
-    env_file:
-      - .env
-    ports:
-      - "8001:8001"
-    depends_on:                        # ← ждём, пока healthcheck станет 'healthy'
+    depends_on:
       db:
         condition: service_healthy
+    ports:
+      - "8001:8001"
 
 volumes:
   pgdata:

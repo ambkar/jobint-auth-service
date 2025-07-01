@@ -10,7 +10,7 @@ on:
     branches: [ main ]          # и при PR в main (тесты без деплоя)
 
 env:
-  IMAGE_NAME: my-backend-image  # чтобы не повторять тэг много раз
+  IMAGE_NAME: auth  # чтобы не повторять тэг много раз
 
 # ──────────────────────
 #  Job: build
