@@ -56,6 +56,9 @@ jobs:
       - name: Sanity-check what key ssh-agent?
         run: ssh-add -l
 
+      - name: Debug SSH handshake
+        run: ssh -vvv -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST exit || true
+
       - name: Deploy via SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
