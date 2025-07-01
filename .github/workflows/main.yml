@@ -71,6 +71,7 @@ jobs:
             cd /var/www/jobint.ru/auth-service
             REPO=git@github.com:ambkar/jobint-auth-service.git
             pwd && ls -al
+            DIR=/var/www/jobint.ru/auth-service
             
             # --- clone при первом деплое ---
             if [ ! -d "$DIR/.git" ]; then
