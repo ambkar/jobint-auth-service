@@ -1,5 +1,6 @@
 services:
   db:
+
     image: postgres:14
     environment:
       POSTGRES_DB: "jobint"
@@ -17,6 +18,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
 
 
   auth_service:
@@ -30,6 +32,6 @@ services:
       - "8001:8001"                 # HOST → контейнер
     env_file: .env                  # если нужен .env
     command: python -m app.main     # запуск Sanic
-
+    restart: unless-stopped
 volumes:
   pgdata:
