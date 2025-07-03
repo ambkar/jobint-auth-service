@@ -34,25 +34,21 @@ def _token(user: User) -> str:
 
 # ─────────── POST /register ───────────
 @bp.post("/register")
-@openapi.body("multipart/form-data")  # для OpenAPI, если нужно
+@openapi.body("multipart/form-data")  # для документации, если нужно
 @openapi.response(201, TokenOut)
 async def register(request):
-    # Получаем поля формы
     data = request.form
     files = request.files
 
-    # Валидация обязательных полей
     required = ("name", "surname", "patronymic", "phone", "email", "password")
     if any(not data.get(k) for k in required):
         return response.json({"error": "Все поля обязательны"}, status=400)
 
-    # Проверка дубликата email
     async with AsyncSessionLocal() as session:
         exists = await session.execute(select(User).where(User.email == data["email"]))
         if exists.scalars().first():
             return response.json({"error": "Email уже зарегистрирован"}, status=409)
 
-        # Получаем файл аватара (если был)
         avatar_file = files.get("avatar")
         avatar_bytes = await avatar_file.read() if avatar_file else None
 
@@ -70,6 +66,7 @@ async def register(request):
         await session.refresh(user)
 
     return response.json({"token": _token(user)}, status=201)
+
 
 
 
