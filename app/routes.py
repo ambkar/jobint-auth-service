@@ -34,16 +34,27 @@ def _token(user: User) -> str:
 
 # ─────────── POST /register ───────────
 @bp.post("/register")
-@validate(json=RegisterIn)                # валидация + описание body
-@openapi.response(201, TokenOut)          # схема успешного ответа
-async def register(request, body: RegisterIn):   # body типизирован схемой
-    data = body.model_dump()
+@openapi.body("multipart/form-data")  # для OpenAPI, если нужно
+@openapi.response(201, TokenOut)
+async def register(request):
+    # Получаем поля формы
+    data = request.form
+    files = request.files
 
+    # Валидация обязательных полей
+    required = ("name", "surname", "patronymic", "phone", "email", "password")
+    if any(not data.get(k) for k in required):
+        return response.json({"error": "Все поля обязательны"}, status=400)
+
+    # Проверка дубликата email
     async with AsyncSessionLocal() as session:
-        # проверяем дубликат
         exists = await session.execute(select(User).where(User.email == data["email"]))
         if exists.scalars().first():
             return response.json({"error": "Email уже зарегистрирован"}, status=409)
+
+        # Получаем файл аватара (если был)
+        avatar_file = files.get("avatar")
+        avatar_bytes = await avatar_file.read() if avatar_file else None
 
         user = User(
             name=data["name"],
@@ -52,12 +63,14 @@ async def register(request, body: RegisterIn):   # body типизирован �
             phone=data["phone"],
             email=data["email"],
             password=bcrypt.hash(data["password"]),
+            avatar=avatar_bytes
         )
         session.add(user)
         await session.commit()
         await session.refresh(user)
 
     return response.json({"token": _token(user)}, status=201)
+
 
 
 # ─────────── POST /login ───────────
