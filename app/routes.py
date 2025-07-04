@@ -26,7 +26,6 @@ def _token(user: User) -> str:
             "patronymic": user.patronymic,
             "phone": user.phone,
             "email": user.email,
-            "avatar": base64.b64encode(user.avatar).decode() if user.avatar else None  # <--- добавляем это поле
         }
     }
     return jwt.encode(payload, SECRET, algorithm="HS256")
@@ -96,3 +95,14 @@ async def login(request, body: LoginIn):
         return response.json({"error": "Неверный email или пароль"}, status=401)
 
     return response.json({"token": _token(user)})
+
+@bp.get("/avatar/<user_id:int>")
+async def user_avatar(request, user_id):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if not user or not user.avatar:
+            return response.text("Аватар не найден", status=404)
+        # Если в базе хранится MIME-тип, используйте его, иначе по умолчанию image/jpeg
+        mime = getattr(user, "avatar_mime", "image/jpeg")
+        return response.raw(user.avatar, content_type=mime)
