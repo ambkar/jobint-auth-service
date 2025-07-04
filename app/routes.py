@@ -1,7 +1,8 @@
 from typing import Dict
 
 import jwt
-from passlib.hash import bcrypt
+# from passlib.hash import bcrypt
+import bcrypt
 from sanic import Blueprint, response
 from sanic_ext import validate, openapi
 from sqlalchemy.future import select
@@ -74,7 +75,7 @@ async def register(request):
         session.add(new_user)
         await session.commit()
 
-        token = _token(new_user, request.app.config.SECRET)
+        token = _token(new_user)
         return response.json({"token": token})
 
 
