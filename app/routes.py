@@ -34,38 +34,48 @@ def _token(user: User) -> str:
 
 # ─────────── POST /register ───────────
 @bp.post("/register")
-@openapi.body("multipart/form-data")  # для документации, если нужно
-@openapi.response(201, TokenOut)
 async def register(request):
-    data = request.form
+    form = request.form
     files = request.files
 
-    required = ("name", "surname", "patronymic", "phone", "email", "password")
-    if any(not data.get(k) for k in required):
+    name = form.get("name")
+    surname = form.get("surname")
+    patronymic = form.get("patronymic")
+    phone = form.get("phone")
+    email = form.get("email")
+    password = form.get("password")
+    password_confirm = form.get("password_confirm")
+    avatar_file = files.get("avatar")
+
+    if not (name and surname and patronymic and phone and email and password):
         return response.json({"error": "Все поля обязательны"}, status=400)
 
+    if password != password_confirm:
+        return response.json({"error": "Пароли не совпадают"}, status=400)
+
+    avatar_bytes = avatar_file.body if avatar_file else None
+
     async with AsyncSessionLocal() as session:
-        exists = await session.execute(select(User).where(User.email == data["email"]))
-        if exists.scalars().first():
-            return response.json({"error": "Email уже зарегистрирован"}, status=409)
+        # проверяем email на уникальность
+        result = await session.execute(select(User).where(User.email == email))
+        if result.scalars().first():
+            return response.json({"error": "Пользователь с таким email уже существует"}, status=400)
 
-        avatar_file = files.get("avatar")
-        avatar_bytes = await avatar_file.read() if avatar_file else None
-
-        user = User(
-            name=data["name"],
-            surname=data["surname"],
-            patronymic=data["patronymic"],
-            phone=data["phone"],
-            email=data["email"],
-            password=bcrypt.hash(data["password"]),
-            avatar=avatar_bytes
+        hashed_password = bcrypt.hash(password)
+        new_user = User(
+            name=name,
+            surname=surname,
+            patronymic=patronymic,
+            phone=phone,
+            email=email,
+            password=hashed_password,
+            avatar=avatar_bytes,
         )
-        session.add(user)
+        session.add(new_user)
         await session.commit()
-        await session.refresh(user)
 
-    return response.json({"token": _token(user)}, status=201)
+        token = _token(new_user, request.app.config.SECRET)
+        return response.json({"token": token})
 
 
 
