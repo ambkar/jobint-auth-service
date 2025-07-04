@@ -79,6 +79,6 @@ jobs:
             fi
 
             cd "$DIR"
-            docker compose pull
+            docker compose build --no-cache
             docker compose up -d --remove-orphans
           EOSSH
