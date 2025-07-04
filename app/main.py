@@ -3,9 +3,11 @@ from sanic_ext import Extend
 from app.database import engine, Base
 from app.routes import bp as api_bp
 from app.auth import auth_bp
+from sanic_cors import CORS
 
 # ─────────── создание приложения ───────────
 app = Sanic("AuthService")
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "http://0.0.0.0:8080"}})
 
 # Метаданные, которые попадут в OpenAPI /docs
 app.config.API_TITLE = "Jobint Auth Service"
