@@ -1,8 +1,7 @@
 from typing import Dict
 
 import jwt
-# from passlib.hash import bcrypt
-import bcrypt
+from passlib.hash import bcrypt
 from sanic import Blueprint, response
 from sanic_ext import validate, openapi
 from sqlalchemy.future import select
