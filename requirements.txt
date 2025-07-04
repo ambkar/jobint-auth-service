@@ -3,7 +3,7 @@ sanic-ext==24.12.0
 sanic-jinja2
 sqlalchemy[asyncio]
 asyncpg
-# passlib[bcrypt]
+passlib[bcrypt]
 pyjwt
 pydantic>=2.7
 email-validator>=2.1
