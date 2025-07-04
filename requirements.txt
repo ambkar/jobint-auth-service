@@ -8,3 +8,4 @@ pyjwt
 pydantic>=2.7
 email-validator>=2.1
 bcrypt==4.0.1
+sanic-cors
