@@ -1,5 +1,5 @@
 from typing import Dict
-
+import base64
 import jwt
 from passlib.hash import bcrypt
 from sanic import Blueprint, response
@@ -18,7 +18,6 @@ bp = Blueprint("auth_api", url_prefix="/api/v1/auth")
 
 # ─────────── helpers ───────────
 def _token(user: User) -> str:
-    """Собираем JWT-пейлоад и подписываем."""
     payload: Dict = {
         "user": {
             "id": user.id,
@@ -27,9 +26,11 @@ def _token(user: User) -> str:
             "patronymic": user.patronymic,
             "phone": user.phone,
             "email": user.email,
+            "avatar": base64.b64encode(user.avatar).decode() if user.avatar else None  # <--- добавляем это поле
         }
     }
     return jwt.encode(payload, SECRET, algorithm="HS256")
+
 
 
 # ─────────── POST /register ───────────
