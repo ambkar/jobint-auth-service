@@ -81,5 +81,5 @@ jobs:
             cd "$DIR"
             docker compose build --no-cache
             docker compose up -d --remove-orphans
-            docker compose exec -T auth_service python app/database.py
+            docker compose run --rm auth_service python app/database.py
           EOSSH

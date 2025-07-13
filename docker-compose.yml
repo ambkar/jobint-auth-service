@@ -8,10 +8,8 @@ services:
     ports:
       - "8001:8001"
     env_file: .env
-    command: python -m app.main
+    command: hypercorn app.main:app --bind 0.0.0.0:8001
     restart: unless-stopped
     volumes:
-      - ./jobint.sqlite3:/srv/jobint.sqlite3
-      - ./anon.session:/srv/anon.session  # если нужен файл сессии Telethon
-
-# Для SQLite отдельный сервис базы не нужен!
+      - ./app:/app/app
+      - ./jobint.sqlite3:/app/jobint.sqlite3
