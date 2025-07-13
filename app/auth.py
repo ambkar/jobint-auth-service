@@ -2,7 +2,7 @@ from functools import wraps
 import jwt
 from sanic import response, Blueprint
 
-auth_bp = Blueprint("auth_extra", url_prefix="api/v1/auth")
+auth_bp = Blueprint("auth_extra", url_prefix="/auth")
 
 def check_token(request):
     auth_header = request.headers.get("Authorization", "")
