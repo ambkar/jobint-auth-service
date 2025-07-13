@@ -129,6 +129,12 @@ async def update_profile(request):
         if not user:
             return response.json({"error": "User not found"}, status=404)
 
+        # Проверка уникальности email при обновлении
+        if email and email != user.email:
+            dup_check = await session.execute(select(User).where(User.email == email))
+            if dup_check.scalars().first():
+                return response.json({"error": "Email уже занят"}, status=400)
+
         if name is not None:
             user.name = name
         if surname is not None:
@@ -145,7 +151,21 @@ async def update_profile(request):
             user.avatar = avatar_file.body
 
         await session.commit()
-        return response.json({"message": "Profile updated"})
+        await session.refresh(user)
+
+        # Выдаём новый JWT и актуальные данные пользователя
+        new_token = _token(user)
+        return response.json({
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "surname": user.surname,
+                "patronymic": user.patronymic,
+                "phone": user.phone,
+                "email": user.email,
+            },
+            "token": new_token,
+        })
 
 @bp.delete("/profile")
 @protected
