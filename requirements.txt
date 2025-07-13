@@ -4,3 +4,4 @@ sqlalchemy[asyncio]
 aiosqlite
 telethon
 pydantic
+hypercorn
