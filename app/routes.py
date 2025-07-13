@@ -9,6 +9,7 @@ from sqlalchemy.future import select
 from app.database import AsyncSessionLocal
 from app.models import User
 from app.schemas import RegisterIn, LoginIn, TokenOut
+from app.auth import protected
 
 # JWT–секрет хранится пока в коде; в проде вынесите в переменную окружения
 SECRET = "732e4de0c7203b17f73ca043a7135da261d3bff7c501a1b1451d6e5f412e2396"
@@ -106,3 +107,53 @@ async def user_avatar(request, user_id):
         # Если в базе хранится MIME-тип, используйте его, иначе по умолчанию image/jpeg
         mime = getattr(user, "avatar_mime", "image/jpeg")
         return response.raw(user.avatar, content_type=mime)
+    
+# ─────────── PUT /profile (обновление профиля) ───────────
+
+@bp.put("/profile")
+@protected
+async def update_profile(request):
+    user_id = request.ctx.user["id"]
+    data = request.json
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if not user:
+            return response.json({"error": "User not found"}, status=404)
+
+        # Обновляем только переданные поля
+        for field in ["name", "surname", "patronymic", "phone", "email"]:
+            if field in data:
+                setattr(user, field, data[field])
+
+        # Если пришёл новый пароль — обновить
+        if "password" in data and data["password"]:
+            user.password = bcrypt.hash(data["password"])
+
+        # Если пришёл новый аватар (base64)
+        if "avatar" in data and data["avatar"]:
+            try:
+                user.avatar = base64.b64decode(data["avatar"])
+            except Exception:
+                return response.json({"error": "Invalid avatar format"}, status=400)
+
+        await session.commit()
+        return response.json({"message": "Profile updated"})
+
+# ─────────── DELETE /profile (удаление профиля) ───────────
+
+@bp.delete("/profile")
+@protected
+async def delete_profile(request):
+    user_id = request.ctx.user["id"]
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if not user:
+            return response.json({"error": "User not found"}, status=404)
+
+        await session.delete(user)
+        await session.commit()
+        return response.json({"message": "User deleted"})
