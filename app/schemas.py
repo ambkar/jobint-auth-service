@@ -1,27 +1,17 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from pydantic import BaseModel
 
-class RegisterIn(BaseModel):
-    name: str = Field(max_length=100)
-    surname: str = Field(max_length=100)
-    patronymic: str = Field(max_length=100)
-    phone: str = Field(max_length=20)
-    email: EmailStr
-    password: str = Field(min_length=8)
-    avatar: Optional[str] = Field(default=None, description="Base64-encoded avatar image")
+class UserCreate(BaseModel):
+    name: str
+    surname: str
+    phone: str
 
-class LoginIn(BaseModel):
-    email: EmailStr
-    password: str
+class UserEdit(BaseModel):
+    name: str = None
+    surname: str = None
+    avatar: str = None  # base64
 
-class TokenOut(BaseModel):
-    token: str
-
-class UpdateProfileIn(BaseModel):
-    name: Optional[str] = Field(max_length=100)
-    surname: Optional[str] = Field(max_length=100)
-    patronymic: Optional[str] = Field(max_length=100)
-    phone: Optional[str] = Field(max_length=20)
-    email: Optional[EmailStr]
-    password: Optional[str] = Field(min_length=8)
-    avatar: Optional[str] = Field(default=None, description="Base64-encoded avatar image")
+class UserOut(BaseModel):
+    name: str
+    surname: str
+    phone: str
+    avatar: str = None

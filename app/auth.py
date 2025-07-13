@@ -1,31 +1,22 @@
-from functools import wraps
-import jwt
-from sanic import response, Blueprint
+import random
+import string
+from telethon.sync import TelegramClient
+from telethon.tl.functions.contacts import ImportContactsRequest
+from telethon.tl.types import InputPhoneContact
 
-auth_bp = Blueprint("auth_extra", url_prefix="/auth")
+API_ID = '27195769'
+API_HASH = '1b917b5d0750d0425c71a95ba92e736a'
+TG_PHONE = '+79682726227'
 
-def check_token(request):
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return False
-    token = auth_header[7:]
-    try:
-        payload = jwt.decode(token, request.app.config.SECRET, algorithms=["HS256"])
-        request.ctx.user = payload.get("user")
-        return True
-    except jwt.exceptions.InvalidTokenError:
-        return False
+def generate_code(length=6):
+    return ''.join(random.choices(string.digits, k=length))
 
-def protected(f):
-    @wraps(f)
-    async def decorated_function(request, *args, **kwargs):
-        if check_token(request):
-            return await f(request, *args, **kwargs)
-        else:
-            return response.json({"error": "Unauthorized"}, status=401)
-    return decorated_function
-
-@auth_bp.get("/me")
-@protected
-async def me(request):
-    return response.json({"user": request.ctx.user})
+def send_code_via_telegram(phone, code):
+    client = TelegramClient('anon', API_ID, API_HASH)
+    client.start(phone=TG_PHONE)
+    contact = InputPhoneContact(client_id=0, phone=phone, first_name='', last_name='')
+    result = client(ImportContactsRequest([contact]))
+    user = result.users[0] if result.users else None
+    if user:
+        client.send_message(user.id, f"Ваш код: {code}")
+    client.disconnect()
