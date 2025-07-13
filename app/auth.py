@@ -6,7 +6,6 @@ SECRET = "732e4de0c7203b17f73ca043a7135da261d3bff7c501a1b1451d6e5f412e2396"
 
 auth_bp = Blueprint("auth_guard", url_prefix="/api/v1/auth")
 
-
 def check_token(request):
     hdr = request.headers.get("Authorization", "")
     if not hdr.startswith("Bearer "):
@@ -16,7 +15,6 @@ def check_token(request):
     except jwt.exceptions.InvalidTokenError:
         return None
 
-
 def protected(fn):
     @wraps(fn)
     async def decorated(request, *a, **kw):
@@ -25,9 +23,7 @@ def protected(fn):
             return response.json({"error": "Unauthorized"}, status=401)
         request.ctx.user = payload["user"]
         return await fn(request, *a, **kw)
-
     return decorated
-
 
 @auth_bp.get("/me")
 @protected

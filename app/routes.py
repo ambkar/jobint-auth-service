@@ -1,26 +1,14 @@
 from typing import Dict
-
 import base64
-
 import jwt
-
 from passlib.hash import bcrypt
-
 from sanic import Blueprint, response
-
 from sanic_ext import validate, openapi
-
 from sqlalchemy.future import select
-
 from app.database import AsyncSessionLocal
-
 from app.models import User
-
 from app.schemas import RegisterIn, LoginIn, TokenOut
-
 from app.auth import protected
-
-# JWT–секрет хранится пока в коде; в проде вынесите в переменную окружения
 
 SECRET = "732e4de0c7203b17f73ca043a7135da261d3bff7c501a1b1451d6e5f412e2396"
 
@@ -71,7 +59,6 @@ async def register(request):
             return response.json({"error": "Пользователь с таким email уже существует"}, status=400)
 
         hashed_password = bcrypt.hash(password)
-
         new_user = User(
             name=name,
             surname=surname,
@@ -102,6 +89,8 @@ async def login(request, body: LoginIn):
             return response.json({"error": "Неверный email или пароль"}, status=401)
         return response.json({"token": _token(user)})
 
+# ─────────── GET /avatar/<user_id:int> ───────────
+
 @bp.get("/avatar/<user_id:int>")
 async def user_avatar(request, user_id):
     async with AsyncSessionLocal() as session:
@@ -109,7 +98,6 @@ async def user_avatar(request, user_id):
         user = result.scalars().first()
         if not user or not user.avatar:
             return response.text("Аватар не найден", status=404)
-        # Если в базе хранится MIME-тип, используйте его, иначе по умолчанию image/jpeg
         mime = getattr(user, "avatar_mime", "image/jpeg")
         return response.raw(user.avatar, content_type=mime)
 
@@ -140,7 +128,6 @@ async def update_profile(request):
         email = data.get("email")
         password = data.get("password")
         avatar_file = None
-        # если аватар приходит как base64-строка
         avatar_b64 = data.get("avatar")
         if avatar_b64:
             try:
