@@ -8,4 +8,4 @@ CORS(app, supports_credentials=True, resources={r"/*": {"origins": "http://0.0.0
 app.register_blueprint(bp)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8001, debug=True)
+    app.run(host="0.0.0.0", port=8001)
