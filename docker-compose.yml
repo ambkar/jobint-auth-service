@@ -32,5 +32,12 @@ services:
     env_file: .env                  # если нужен .env
     command: python -m app.main     # запуск Sanic
     restart: unless-stopped
+    networks:
+      - jobint-net
 volumes:
   pgdata:
+
+
+networks:
+  jobint-net:
+    external: true
