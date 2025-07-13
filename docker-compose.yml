@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:14
@@ -7,8 +9,8 @@ services:
       POSTGRES_PASSWORD: "Karen_2003"
       PGDATA: "/var/lib/postgresql/data/pgdata"
     volumes:
-       - ../2. Init Database:/docker-entrypoint-initdb.d
-       - pgdata:/var/lib/postgresql/data
+      - ../2. Init Database:/docker-entrypoint-initdb.d  # Скрипты инициализации, если нужны
+      - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
@@ -18,25 +20,26 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
-
+    networks:
+      - jobint-net
 
   auth_service:
     build:
       context: .
-      dockerfile: Dockerfile        # тот, что лежит в корне репо
+      dockerfile: Dockerfile
     depends_on:
       db:
-        condition: service_healthy  # дождаться готовности БД
+        condition: service_healthy
     ports:
-      - "8001:8001"                 # HOST → контейнер
-    env_file: .env                  # если нужен .env
-    command: python -m app.main     # запуск Sanic
+      - "8001:8001"
+    env_file: .env
+    command: python -m app.main
     restart: unless-stopped
     networks:
       - jobint-net
+
 volumes:
   pgdata:
-
 
 networks:
   jobint-net:
