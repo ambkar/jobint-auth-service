@@ -4,4 +4,3 @@ __pycache__/
 venv/
 instance/
 *.sqlite3
-anon.session
