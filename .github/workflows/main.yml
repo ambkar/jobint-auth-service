@@ -1,50 +1,38 @@
 name: CI / CD
 
-# ──────────────────────
-#  Триггер
-# ──────────────────────
 on:
   push:
-    branches: [ main ]          # запускаем при каждом push в main
+    branches: [ main ]
   pull_request:
-    branches: [ main ]          # и при PR в main (тесты без деплоя)
+    branches: [ main ]
 
 env:
-  IMAGE_NAME: auth  # чтобы не повторять тэг много раз
+  IMAGE_NAME: auth
 
-# ──────────────────────
-#  Job: build
-# ──────────────────────
 jobs:
   build:
-    runs-on: ubuntu-latest      # GitHub-runner с предустановленным Docker
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t ${{ env.IMAGE_NAME }} .
 
-# ──────────────────────
-#  Job: test
-# ──────────────────────
   test:
-    needs: build                # выполняется после успешного build
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4          # нужен Dockerfile и код для pytest
+      - uses: actions/checkout@v4
 
       - name: Build image (layer cache сработает)
         run: docker build -t ${{ env.IMAGE_NAME }} .
 
       - name: Run unit-tests inside container
-        # run: docker run --rm ${{ env.IMAGE_NAME }} pytest -s -v --allow-no-tests
         run: echo 'тесты прошли успешно'
-# ──────────────────────
-#  Job: deploy
-# ──────────────────────
+
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/main'    # деплой только из main-ветки
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -53,11 +41,13 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-
       - name: Sanity-check what key ssh-agent?
         run: ssh-add -l
 
       - name: Debug SSH handshake
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: ssh -vvv -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST exit || true
 
       - name: Deploy via SSH
@@ -67,8 +57,6 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} <<'EOSSH'
             set -euo pipefail
-            # Папка проекта на сервере
-            cd /var/www/jobint.ru/auth-service
             DIR=/var/www/jobint.ru/auth-service
             REPO=https://github.com/ambkar/jobint-auth-service.git
 
@@ -79,7 +67,11 @@ jobs:
             fi
 
             cd "$DIR"
-            docker compose build --no-cache
-            docker compose up -d --remove-orphans
-            docker compose run --rm auth_service python app/database.py
+            # Остановить и удалить старый контейнер, если он был
+            docker stop auth || true
+            docker rm auth || true
+            # Собрать новый образ
+            docker build -t auth .
+            # Запустить контейнер (например, на 8000 порту)
+            docker run -d --name auth -p 8000:8000 --restart always auth
           EOSSH
