@@ -6,8 +6,10 @@ from db import init_db
 from telegram_sender import generate_code, send_code_via_telegram
 from utils import clear_expired_codes
 import asyncio
+from sanic_cors import CORS
 
 app = Sanic("AuthService")
+CORS(app, resources={r"/*": {"origins": ["https://jobint.ru"]}})
 
 @app.listener('before_server_start')
 async def setup_db(app, loop):

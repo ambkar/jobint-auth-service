@@ -3,3 +3,4 @@ tortoise-orm
 aiosqlite
 telethon
 python-dotenv
+sanic-cors
