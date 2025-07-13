@@ -1,31 +1,31 @@
-import jwt
 from functools import wraps
-from sanic import Blueprint, response
+import jwt
+from sanic import response, Blueprint
 
-SECRET = "732e4de0c7203b17f73ca043a7135da261d3bff7c501a1b1451d6e5f412e2396"
-
-auth_bp = Blueprint("auth_guard", url_prefix="/api/v1/auth")
+auth_bp = Blueprint("auth_extra", url_prefix="api/v1/auth")
 
 def check_token(request):
-    hdr = request.headers.get("Authorization", "")
-    if not hdr.startswith("Bearer "):
-        return None
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return False
+    token = auth_header[7:]
     try:
-        return jwt.decode(hdr[7:], SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, request.app.config.SECRET, algorithms=["HS256"])
+        request.ctx.user = payload.get("user")
+        return True
     except jwt.exceptions.InvalidTokenError:
-        return None
+        return False
 
-def protected(fn):
-    @wraps(fn)
-    async def decorated(request, *a, **kw):
-        payload = check_token(request)
-        if not payload:
+def protected(f):
+    @wraps(f)
+    async def decorated_function(request, *args, **kwargs):
+        if check_token(request):
+            return await f(request, *args, **kwargs)
+        else:
             return response.json({"error": "Unauthorized"}, status=401)
-        request.ctx.user = payload["user"]
-        return await fn(request, *a, **kw)
-    return decorated
+    return decorated_function
 
 @auth_bp.get("/me")
 @protected
 async def me(request):
-    return response.json(request.ctx.user)
+    return response.json({"user": request.ctx.user})
