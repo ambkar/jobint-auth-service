@@ -3,10 +3,11 @@ import string
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import ImportContactsRequest
 from telethon.tl.types import InputPhoneContact
+import os
 
-API_ID = '27195769'
-API_HASH = '1b917b5d0750d0425c71a95ba92e736a'
-TG_PHONE = '+79682726227'
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
+TG_PHONE = os.getenv('TG_PHONE')
 
 def generate_code(length=6):
     return ''.join(random.choices(string.digits, k=length))

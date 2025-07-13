@@ -1,7 +1,5 @@
-flask[async]
-flask-cors
-sqlalchemy[asyncio]
+sanic
+tortoise-orm
 aiosqlite
 telethon
-pydantic
-hypercorn
+python-dotenv

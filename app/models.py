@@ -1,19 +1,20 @@
-from sqlalchemy import Column, Integer, String, LargeBinary, DateTime
-from datetime import datetime
-from .database import Base
+from tortoise import fields, models
 
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100))
-    surname = Column(String(100))
-    phone = Column(String(20), unique=True, nullable=False)
-    avatar = Column(LargeBinary, nullable=True)
+class User(models.Model):
+    id = fields.IntField(pk=True)
+    name = fields.CharField(max_length=100, null=True)
+    surname = fields.CharField(max_length=100, null=True)
+    phone = fields.CharField(max_length=20, unique=True, null=False)
+    avatar = fields.BinaryField(null=True)
 
-class ConfirmationCode(Base):
-    __tablename__ = "confirmation_codes"
-    id = Column(Integer, primary_key=True)
-    phone = Column(String(20), nullable=False, index=True)
-    code = Column(String(10), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    purpose = Column(String(20), nullable=False)
+    class Meta:
+        table = "users"
+
+class TempCode(models.Model):
+    id = fields.IntField(pk=True)
+    phone = fields.CharField(max_length=20)
+    code = fields.CharField(max_length=10)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "temp_codes"
