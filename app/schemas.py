@@ -28,4 +28,4 @@ class UpdateProfileIn(BaseModel):
     phone: Optional[str] = Field(max_length=20)
     email: Optional[EmailStr]
     password: Optional[str] = Field(min_length=8)
-    avatar: Optional[str] = Field(default=None, description="Base64-encoded avatar image")
+    avatar: Optional[str] = Field(default=None, description="Base64-encoded avatar image") 
