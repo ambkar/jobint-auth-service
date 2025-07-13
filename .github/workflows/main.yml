@@ -73,5 +73,5 @@ jobs:
             # Собрать новый образ
             docker build -t auth .
             # Запустить контейнер (например, на 8000 порту)
-            docker run -d --name auth -p 8000:8000 --restart always auth
+            docker run -d --name auth -p 8001:8001 --restart always auth
           EOSSH
