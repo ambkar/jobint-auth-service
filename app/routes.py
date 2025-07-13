@@ -14,7 +14,7 @@ async def register():
     code = generate_code()
     session['reg_code'] = code
     session['reg_phone'] = phone
-    send_code_via_telegram(phone, code)
+    await send_code_via_telegram(phone, code)
     return jsonify({'status': 'code_sent'})
 
 @bp.route('/api/verify', methods=['POST'])
@@ -41,7 +41,7 @@ async def login():
     code = generate_code()
     session['login_code'] = code
     session['login_phone'] = phone
-    send_code_via_telegram(phone, code)
+    await send_code_via_telegram(phone, code)
     return jsonify({'status': 'code_sent'})
 
 @bp.route('/api/login-verify', methods=['POST'])
