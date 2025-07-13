@@ -102,7 +102,7 @@ async def login(request, body: LoginIn):
             return response.json({"error": "Неверный email или пароль"}, status=401)
         return response.json({"token": _token(user)})
 
-@bp.get("/avatar/")
+@bp.get("/avatar/<user_id:int>")
 async def user_avatar(request, user_id):
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.id == user_id))
