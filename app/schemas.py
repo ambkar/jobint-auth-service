@@ -15,3 +15,11 @@ class UserOut(BaseModel):
     surname: str
     phone: str
     avatar: str = None
+
+class CodeVerify(BaseModel):
+    phone: str
+    code: str
+
+class RegisterVerify(CodeVerify):
+    name: str
+    surname: str
