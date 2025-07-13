@@ -1,46 +1,17 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: "jobint"
-      POSTGRES_USER: "jobint_user"
-      POSTGRES_PASSWORD: "Karen_2003"
-      PGDATA: "/var/lib/postgresql/data/pgdata"
-    volumes:
-      - ../2. Init Database:/docker-entrypoint-initdb.d  # Скрипты инициализации, если нужны
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jobint_user -d jobint"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    networks:
-      - jobint-net
-
   auth_service:
     build:
       context: .
       dockerfile: Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "8001:8001"
     env_file: .env
-    command: hypercorn app.main:app --bind 0.0.0.0:8001
+    command: python -m app.main
     restart: unless-stopped
-    networks:
-      - jobint-net
+    volumes:
+      - ./jobint.sqlite3:/srv/jobint.sqlite3
+      - ./anon.session:/srv/anon.session  # если нужен файл сессии Telethon
 
-volumes:
-  pgdata:
-
-networks:
-  jobint-net:
-    external: true
+# Для SQLite отдельный сервис базы не нужен!

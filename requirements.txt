@@ -1,8 +1,6 @@
 flask[async]
 flask-cors
 sqlalchemy[asyncio]
-asyncpg
+aiosqlite
 telethon
 pydantic
-hypercorn
-

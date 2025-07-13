@@ -1,3 +1,5 @@
+import random
+import string
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import ImportContactsRequest
 from telethon.tl.types import InputPhoneContact
@@ -5,9 +7,6 @@ from telethon.tl.types import InputPhoneContact
 API_ID = '27195769'
 API_HASH = '1b917b5d0750d0425c71a95ba92e736a'
 TG_PHONE = '+79682726227'
-
-import random
-import string
 
 def generate_code(length=6):
     return ''.join(random.choices(string.digits, k=length))

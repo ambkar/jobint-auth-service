@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify, session
 from sqlalchemy.future import select
 from sqlalchemy import delete
 from datetime import datetime, timedelta
-
 from .database import AsyncSessionLocal
 from .models import User, ConfirmationCode
 from .auth import generate_code, send_code_via_telegram
